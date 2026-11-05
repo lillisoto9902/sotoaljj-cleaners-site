@@ -1,76 +1,67 @@
 "use strict";
+// Planning only: no approved public customer API exists in the reviewed Core contract.
+// Never put tenant bearer credentials in browser code.
 const config = window.SOTO_BOOKING_CONFIG || {};
-const form = document.querySelector("#booking-form");
-const feedback = document.querySelector("#form-feedback");
-const status = document.querySelector("#connection-status");
-const submitButton = document.querySelector("#submit-booking");
-const residential = document.querySelector("#residential-fields");
-const commercial = document.querySelector("#commercial-fields");
-const isConnected = /^https:\/\//i.test(config.apiUrl || "");
-const hasEndpoint = Boolean(config.apiUrl);
-document.querySelector("#year").textContent = String(new Date().getFullYear());
+const form = document.querySelector('#booking-form');
+const feedback = document.querySelector('#form-feedback');
+const residential = document.querySelector('#residential-fields');
+const commercial = document.querySelector('#commercial-fields');
 const dateInput = form.elements.preferred_date;
-const today = new Date();
-const year = today.getFullYear(), month = String(today.getMonth() + 1).padStart(2, "0"), day = String(today.getDate()).padStart(2, "0");
-dateInput.min = `${year}-${month}-${day}`;
-status.textContent = !hasEndpoint ? "Website preview is ready. Booking requests are disabled until the public Receptionist Core endpoint is connected." : isConnected ? "Receptionist Core endpoint configured. Requests require successful server verification before confirmation." : "Invalid booking configuration: the endpoint must use HTTPS.";
-if(!isConnected) status.classList.add("offline");
+document.querySelector('#year').textContent = String(new Date().getFullYear());
+document.querySelector('#booking-fields').disabled = false;
+function updateMinimumDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {timeZone:'America/New_York', year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const part = type => parts.find(item => item.type === type).value;
+  dateInput.min = `${part('year')}-${part('month')}-${part('day')}`;
+}
+updateMinimumDate();
+dateInput.addEventListener('focus', updateMinimumDate);
+function updatePriceNote() {
+  const size = form.elements.square_feet;
+  const tier = form.elements.residential_cleaning_type.value;
+  document.querySelector('#residential-price').textContent = !size.value || !size.validity.valid
+    ? 'Enter square footage to see whether a custom quote is required.'
+    : Number(size.value) > 875
+      ? 'A custom quote is required for properties above 875 square feet.'
+      : tier === 'standard'
+        ? 'Standard cleaning: $100 for properties up to 875 square feet. Your service details and final price must be confirmed before payment.'
+        : 'A confirmed quote is needed for this tier. The $100 base price applies only to standard cleaning up to 875 square feet.';
+}
 function switchService(type) {
-  const isResidential = type === "residential";
+  if (!['residential','commercial'].includes(type)) return;
+  const isResidential = type === 'residential';
   form.querySelector(`input[name=service_type][value=${type}]`).checked = true;
   residential.hidden = !isResidential;
+  residential.disabled = !isResidential;
   commercial.hidden = isResidential;
-  commercial.querySelector("input[name=business_name]").required = !isResidential;
-  feedback.textContent = "";
+  commercial.disabled = isResidential;
+  feedback.textContent = '';
+  updatePriceNote();
 }
-form.querySelectorAll("input[name=service_type]").forEach(input => input.addEventListener("change", () => switchService(input.value)));
-document.querySelectorAll("[data-service]").forEach(button => button.addEventListener("click", () => { switchService(button.dataset.service); document.querySelector("#booking").scrollIntoView({behavior:"smooth"}); }));
-switchService("residential");
-function mapBookingToApi(data) {
-  // Candidate shape only. Confirm backend /intake contract before enabling.
-  // Do not transmit irrelevant fields from the hidden service-specific section.
-  const base = {
-    service_type: data.get("service_type"), full_name: data.get("full_name")?.trim(),
-    email: data.get("email")?.trim(), phone: data.get("phone")?.trim(),
-    zip_code: data.get("zip_code")?.trim(), service_address: data.get("service_address")?.trim(),
-    preferred_date: data.get("preferred_date"), preferred_time: data.get("preferred_time"),
-    notes: data.get("notes")?.trim() || "", contact_consent: data.has("contact_consent"),
-    source: "sotoaljj_cleaners_website"
-  };
-  if(config.tenantId) base.tenant_id = config.tenantId;
-  if(base.service_type === "residential") base.residential = {
-    property_type:data.get("property_type"),cleaning_type:data.get("residential_cleaning_type"),
-    bedrooms:data.get("bedrooms"),bathrooms:data.get("bathrooms"),
-    square_feet:data.get("square_feet") ? Number(data.get("square_feet")) : null,
-    frequency:data.get("frequency")
-  };
-  else base.commercial = { business_name:data.get("business_name")?.trim(),space_type:data.get("business_space_type") };
-  return base;
-}
-form.addEventListener("submit", async event => {
-  event.preventDefault(); feedback.classList.remove("success"); feedback.textContent = "";
-  if (!form.reportValidity()) return;
-  if(!isConnected){ feedback.textContent = "Booking connection is not enabled yet. This website preview cannot transmit your request. No booking was created."; return; }
-  const payload = mapBookingToApi(new FormData(form));
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Math.min(Math.max(Number(config.requestTimeoutMs) || 15000, 1000), 30000));
-  submitButton.disabled = true;
-  submitButton.textContent = "Sending request…";
-  try {
-    const response = await fetch(config.apiUrl, {
-      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      // If Receptionist Core requires cookie+CSRF authorization or preflight, integrate
-      // its supported public customer-flow method here rather than bypassing security.
-      body: JSON.stringify(payload), signal: controller.signal
-    });
-    if(!response.ok) throw new Error(`Server returned ${response.status}.`);
-    // A 2xx response means request accepted, not that a time slot was confirmed.
-    feedback.classList.add("success");
-    feedback.textContent = "Your request was received by the booking system. This is not a confirmed appointment; look for a separate confirmation.";
-    form.reset();switchService("residential");
-    feedback.classList.add("success");
-    feedback.textContent = "Your request was received by the booking system. This is not a confirmed appointment; look for a separate confirmation.";
-  } catch (error) {
-    feedback.textContent = `Request not confirmed as delivered (${error.name === "AbortError" ? "connection timed out" : error.message}). Please do not assume the booking was created. Contact the business before retrying.`;
-  } finally { clearTimeout(timeout); submitButton.disabled = false; submitButton.textContent = "Send Booking Request →"; }
+form.querySelectorAll('input[name=service_type]').forEach(input => input.addEventListener('change', () => switchService(input.value)));
+document.querySelectorAll('[data-service]').forEach(button => button.addEventListener('click', () => {
+  switchService(button.dataset.service);
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelector('#booking').scrollIntoView({behavior:reduced ? 'instant':'smooth'});
+  form.querySelector(`input[name=service_type][value=${button.dataset.service}]`).focus({preventScroll:true});
+}));
+form.elements.square_feet.addEventListener('input', updatePriceNote);
+form.elements.residential_cleaning_type.addEventListener('change', updatePriceNote);
+switchService('residential');
+// Guard keyboard and programmatic submits as well. No fetch, storage, or payment simulation.
+form.addEventListener('submit', event => {
+  event.preventDefault();
+  feedback.textContent = 'Online booking is unavailable. No request was sent, no appointment was reserved, and no payment was taken. Please email us to discuss your cleaning needs.';
 });
+const contact = document.querySelector('#public-contact');
+const links = [];
+if (typeof config.publicEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(config.publicEmail)) {
+  const a = document.createElement('a'); a.href = `mailto:${config.publicEmail}`; a.textContent = config.publicEmail; links.push(a);
+}
+if (typeof config.publicPhone === 'string' && /^\+?[\d () .-]{7,30}$/.test(config.publicPhone)) {
+  const a = document.createElement('a'); a.href = `tel:${config.publicPhone.replace(/[^+\d]/g,'')}`; a.textContent = config.publicPhone; links.push(a);
+}
+if (links.length) contact.replaceChildren(...links.map(a => {const p = document.createElement('p'); p.append(a); return p;}));
+for (const [key,id] of [['serviceArea','service-area'],['businessHours','business-hours']]) {
+  if (typeof config[key] === 'string' && config[key].trim()) document.getElementById(id).textContent = config[key];
+}

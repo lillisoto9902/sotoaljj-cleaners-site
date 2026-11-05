@@ -1,0 +1,18 @@
+# Local credentials, customer records, and internal review materials must stay private.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.csv
+*.sqlite*
+*.db
+owner-review/
+.qa/
+node_modules/
+profitability/
+*profitability*
+*POLICY-DRAFT*
+*.log

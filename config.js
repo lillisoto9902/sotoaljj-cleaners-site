@@ -1,11 +1,10 @@
-/* PUBLIC browser configuration. Never place API keys or admin credentials here.
-   Set the HTTPS customer-facing public intake URL only after the Receptionist Core
-   deployment, tenant routing, CSRF protection and CORS configuration are verified.
-   The existing /intake route is known in development, but the public deployment URL
-   and exact request schema MUST be confirmed before connecting. */
+/* Owner verified email, service area, and standard-only base price: November 5, 2026.
+   Hours and Core business-facing phone remain unverified. Never add credentials.
+   Booking remains disabled until the actual customer flow is implemented and validated.
+   Adding an HTTPS URL cannot enable it. */
 window.SOTO_BOOKING_CONFIG = {
-  apiUrl: "",
-  tenantId: "",
-  // The API must explicitly support these fields, or adapt mapBookingToApi in app.js.
-  requestTimeoutMs: 15000
+  publicEmail: 'sotoaljj@gmail.com',
+  publicPhone: '',
+  serviceArea: 'Cumberland County area, including ZIP code 08332.',
+  businessHours: ''
 };

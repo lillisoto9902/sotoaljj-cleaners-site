@@ -1,0 +1,42 @@
+/* Overrides retain the original palette and layout. */
+.micro { color: #506674 !important; }
+.steps strong { color:#247b30; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+section[id], main[id] { scroll-margin-top:120px; }
+:focus-visible { outline:3px solid #0478b9; outline-offset:4px; }
+.nav { min-height:91px; height:auto; padding-block:8px; }
+.nav nav { flex-wrap:wrap; gap:16px; }
+.nav nav a { display:inline-flex; align-items:center; min-height:44px; }
+.service-list { padding-left:20px; color:var(--muted); line-height:1.8; }
+.service-list li { margin-bottom:10px; }
+.price-note { padding:18px; border-left:4px solid var(--teal); background:var(--pale); border-radius:6px; line-height:1.7; margin:20px 0; }
+.service-card .price-note p { min-height:0; margin:8px 0 0; }
+.service-card>p { min-height:0; }
+.payment-note { line-height:1.8; max-width:850px; margin:30px 0 0; }
+.contact-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:28px; }
+.contact-grid p { line-height:1.8; overflow-wrap:anywhere; }
+.contact-grid a { color:var(--navy); text-underline-offset:4px; }
+#booking-fields { border:0; padding:0; margin:0; min-width:0; display:flex; flex-direction:column; gap:20px; }
+.subsection { border:0; border-top:1px solid var(--border); padding:19px 0 0; margin:0; min-width:0; }
+.subsection legend { color:var(--navy); font-size:18px; font-weight:700; padding:0 8px 0 0; }
+.subsection>.form-grid { margin-top:12px; }
+.subsection>label { margin-top:17px; }
+#submit-booking:disabled { cursor:not-allowed; opacity:1; background:#506674; border-color:#506674; }
+.booking-form input,.booking-form select,.booking-form textarea { font-size:16px; }
+.booking-form label:not(.choice-option):not(.consent) { display:block; line-height:1.6; }
+.booking-form label:not(.choice-option):not(.consent)>input,
+.booking-form label>select,.booking-form label>textarea { display:block; margin-top:7px; }
+.text-action { min-height:44px; text-align:left; }
+.status { border-color:#bd7f26; background:#fff8ed; }
+@media(max-width:800px) { .contact-grid { grid-template-columns:1fr; } }
+@media(max-width:540px) {
+  .nav { align-items:flex-start; gap:10px; }
+  .nav nav { justify-content:flex-end; gap:2px 12px; }
+  .nav nav a:nth-child(2) { display:inline-flex; }
+  .brand { flex-shrink:0; }
+  section[id],main[id] { scroll-margin-top:160px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html { scroll-behavior:auto; }
+  *,*::before,*::after { animation:none!important; transition:none!important; }
+}
