@@ -22,6 +22,16 @@ section[id], main[id] { scroll-margin-top:120px; }
 .subsection>.form-grid { margin-top:12px; }
 .subsection>label { margin-top:17px; }
 #submit-booking:disabled { cursor:not-allowed; opacity:1; background:#506674; border-color:#506674; }
+#deposit-payment:disabled { cursor:not-allowed; background:#506674; border-color:#506674; }
+.pricing-details dt { font-weight:750; margin-top:12px; }
+.pricing-details dd { margin:4px 0 14px; }
+.table-scroll { overflow-x:auto; }
+.service-card { min-width:0; }
+.payment-table { width:100%; border-collapse:collapse; font-size:14px; line-height:1.6; margin-bottom:22px; }
+.payment-table caption { text-align:left; padding-bottom:12px; color:var(--muted); }
+.payment-table th,.payment-table td { padding:10px 6px; text-align:left; vertical-align:top; border-bottom:1px solid var(--border); }
+.payment-guidance .status p { margin:8px 0 0; }
+.booking-form input[type=datetime-local] { min-width:0; max-width:100%; }
 .booking-form input,.booking-form select,.booking-form textarea { font-size:16px; }
 .booking-form label:not(.choice-option):not(.consent) { display:block; line-height:1.6; }
 .booking-form label:not(.choice-option):not(.consent)>input,

@@ -7,26 +7,41 @@ const feedback = document.querySelector('#form-feedback');
 const residential = document.querySelector('#residential-fields');
 const commercial = document.querySelector('#commercial-fields');
 const dateInput = form.elements.preferred_date;
+const guidance = window.SotoBookingGuidance;
 document.querySelector('#year').textContent = String(new Date().getFullYear());
 document.querySelector('#booking-fields').disabled = false;
 function updateMinimumDate() {
-  const parts = new Intl.DateTimeFormat('en-US', {timeZone:'America/New_York', year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-  const part = type => parts.find(item => item.type === type).value;
-  dateInput.min = `${part('year')}-${part('month')}-${part('day')}`;
+  dateInput.min = guidance.earliestRequest();
+  updateAppointmentNote();
 }
 updateMinimumDate();
 dateInput.addEventListener('focus', updateMinimumDate);
 function updatePriceNote() {
   const size = form.elements.square_feet;
   const tier = form.elements.residential_cleaning_type.value;
-  document.querySelector('#residential-price').textContent = !size.value || !size.validity.valid
+  const price = guidance.priceGuidance(tier, size.value);
+  const money = cents => new Intl.NumberFormat('en-US', {style:'currency',currency:'USD'}).format(cents / 100);
+  document.querySelector('#residential-price').textContent = !price || !size.validity.valid
     ? 'Enter square footage to see whether a custom quote is required.'
     : Number(size.value) > 875
       ? 'A custom quote is required for properties above 875 square feet.'
-      : tier === 'standard'
-        ? 'Standard cleaning: $100 for properties up to 875 square feet. Your service details and final price must be confirmed before payment.'
-        : 'A confirmed quote is needed for this tier. The $100 base price applies only to standard cleaning up to 875 square feet.';
+      : price.customQuote
+        ? 'A custom quote is required for this cleaning tier. No additional price or discount is assumed.'
+        : `${tier === 'standard' ? 'Standard' : 'Deep'} cleaning: ${money(price.baseCents)} + ${money(price.taxCents)} NJ tax = ${money(price.totalCents)}. Deposit: ${money(price.depositCents)}; remaining balance: ${money(price.balanceCents)}. This is price guidance, not a charge or confirmed booking.`;
 }
+function updateAppointmentNote() {
+  const state = guidance.appointmentGuidance(dateInput.value);
+  const tooSoon = state === 'too_soon';
+  dateInput.setCustomValidity(tooSoon ? 'New customers must request a start time at least 48 hours away.' : dateInput.value && state === 'invalid' ? 'Choose an unambiguous valid time in America/New_York.' : '');
+  document.querySelector('#appointment-guidance').textContent = !dateInput.value
+    ? 'Choose a preferred start at least 48 hours away, in America/New_York. Availability still needs review.'
+    : tooSoon
+      ? 'This time is less than 48 hours away and is not eligible for a new-customer request. Verified recurring customers must contact us for availability and explicit approval.'
+      : state === 'invalid'
+        ? 'Choose a valid, unambiguous New York time. Times skipped or repeated when clocks change need a different selection.'
+        : 'This time meets the displayed 48-hour lead-time rule only. Customer verification, availability, deposit verification, and staff approval are still required. No request has been submitted.';
+}
+dateInput.addEventListener('input', updateAppointmentNote);
 function switchService(type) {
   if (!['residential','commercial'].includes(type)) return;
   const isResidential = type === 'residential';
