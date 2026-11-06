@@ -1,12 +1,22 @@
 # SotoALJJ LLC Cleaners — local website
 
-Static website retaining the original logo and navy, blue, teal, green, and white branding. `index.html` contains Home, About, Services & Pricing, Contact, and Booking sections.
+Static website retaining the original logo and navy, blue, teal, green, and white branding. `index.html` contains Home, About, Services & Pricing, Contact, Free Consultation, and Booking sections.
 
 ## Current state
 
 Owner confirmed on November 5, 2026: sotoaljj@gmail.com; Cumberland County, New Jersey including ZIP 08332, subject to confirmed address coverage. Standard cleaning up to 875 sq. ft. is $100 before tax / $106.63 with NJ tax. Deep cleaning up to 875 sq. ft. is $250 before tax / $266.56 with NJ tax. Above 875 sq. ft., every tier requires a custom quote. Move-in/out, recurring arrangements, and all commercial services require an agreed quote; no discounts, fees, or other prices are assumed. Hours and the existing Core business-facing Twilio phone are unverified.
 
-Online submission and payment are intentionally unavailable. The form is for local planning only and sends/stores nothing. Email is the public fallback. A validated eligible request requires a 20% deposit credited to the agreed total, with the remaining 80% due upon arrival. Full payment must be verified before cleaning starts. Standard split: $21.33 + $85.30; deep split: $53.31 + $213.25. These are rounded portions of the tax-inclusive total, not additional purchases.
+Paid cleaning submission and payment are intentionally unavailable. The cleaning form is for local planning only and sends/stores nothing. Email is the public fallback. A validated eligible paid cleaning request requires a 20% deposit credited to the agreed total, with the remaining 80% due upon arrival. Full payment must be verified before cleaning starts. Standard split: $21.33 + $85.30; deep split: $53.31 + $213.25. These are rounded portions of the tax-inclusive total, not additional purchases. FREE Custom Cleaning Consultations never require a payment, deposit, or balance.
+
+## Free consultation preparation
+
+Commercial cleaning and homes exceeding 875 sq. ft. have a dedicated free consultation form. Date/time selectors remain empty and disabled until a trusted approved Core customer adapter returns verified, tenant/service-matched, zero-fee, unexpired slots. No sample appointments, employee IDs, personal calendar URLs, or calendar credentials are in the public files.
+
+`consultation.js` is a frontend adapter boundary, not a claimed Core HTTP contract. Public `consultationTenantId` is blank and no `window.SOTO_CONSULTATION_CLIENT` transport is installed. Therefore the current site cannot fetch slots or submit a consultation; it clearly reports temporary unavailability. Adding a URL or tenant ID alone cannot enable it. The adapter must implement `getAvailability`, `requestConsultation`, and `getConsultationStatus` against the actual approved customer-facing contract, preserving authentication, CSRF, tenant/customer isolation and server rules. Never expose a tenant bearer credential.
+
+The frontend passes selected service, customer, property/scope/address, returned slot identity/timestamps, contact consent, tenant context and an idempotency key to that adapter. New-customer slots under 48 hours are filtered. Only the engine adapter can assert verified recurring status to allow shorter-notice requests, which still require staff approval. Received requests display Pending Confirmation; explicit authoritative confirmed status with authorized approval is required to show confirmation. A status-check button supports the later transition. Timeouts/uncertain writes never show a receipt or automatically retry.
+
+Only synthetic test adapters under the parent .qa/ folder exercise these UI branches. They are not public code or genuine Core end-to-end evidence. Endpoint mapping, customer verification, consultation services, tenant ID, calendars, duration, staff approval and engine behavior remain backend integration blockers.
 
 The owner-provided PayPal links are retained as inactive review data in config.js. No PayPal link is exposed as an active customer checkout. Neither opening a link nor a success query parameter can establish payment. Link checkout amounts, correct merchant, booking matching, and server-side reconciliation remain unverified. No live charge or chargeable test has been performed.
 
@@ -23,6 +33,7 @@ The prior speculative API adapter was removed after inspecting the existing Core
 - `accessibility.css`: responsive, focus, contrast, reduced motion, and updated section styles.
 - `app.js`: service switching, nonbinding price guidance, public details, guarded disabled submission.
 - `booking-rules.js`: display-only integer-cent price/tax splits and New York date/time guidance; never an authoritative booking or payment engine.
+- `consultation.js`: empty-by-default free consultation picker, guarded adapter calls, pending/confirmed UI and confirmation status refresh.
 - `config.js`: verified public display values only, never credentials.
 - `assets/sotoaljj-logo.png`: unchanged original; smaller derived PNG used for display, separate favicon.
 
@@ -30,10 +41,10 @@ The prior speculative API adapter was removed after inspecting the existing Core
 
 In the parent workspace, `owner-review/` holds the integration evidence, unpublished policy draft, internal profitability measurement template, and implementation report. Keep that folder outside any deployment or public repository. Completed profitability records must stay in authorized private storage.
 
-The parent `.qa/validate.cjs` uses Playwright, the installed local Chrome, and axe-core to test browser behavior and automated accessibility. Run `node .qa/validate.cjs` and `node --test .qa/booking-guidance.test.cjs` from the parent workspace. These tools are not production dependencies. Automated results do not constitute a complete accessibility certification or genuine Core/PayPal end-to-end acceptance.
+The parent `.qa/validate.cjs` uses Playwright, the installed local Chrome, and axe-core to test browser behavior and automated accessibility. Run `node .qa/validate.cjs`, `node --test .qa/booking-guidance.test.cjs`, and `node .qa/consultation-ui.cjs` from the parent workspace. Consultation responses in the last suite are mocks only. These tools are not production dependencies. Automated results do not constitute a complete accessibility certification or genuine Core/PayPal end-to-end acceptance.
 
 No build is needed. For local preview, serve this directory as static files. The supplied folder originally had no Git metadata; a local repository was prepared for review against the existing remote history. The parent internal materials remain outside this repository.
 
 ## Publication gate
 
-Owner explicitly prohibited pushing to GitHub, enabling live payments, or changing production Core configuration without authorization. Nothing has been pushed or deployed. Publish only this website directory after approval, never the parent workspace or owner-review files. Before actual booking/payment launch, complete and verify the existing Core customer workflow described in the integration review. Preserve all existing tenant, service, commercial, cancellation, security, and provider-gate rules.
+The base commit fe2465043cb4359d5c18e80f8e936ab1243d25aa was previously pushed and deployed with owner authorization. This consultation preparation is local only and requires new owner authorization before push/deployment. No live payment or production Core changes are authorized here. Publish only this website directory after approval, never the parent workspace or owner-review files. Before actual scheduling/booking/payment launch, complete and verify the existing Core customer workflow described in the integration review. Preserve all existing tenant, service, commercial, cancellation, security, and provider-gate rules.

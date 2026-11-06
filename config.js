@@ -7,6 +7,9 @@ window.SOTO_BOOKING_CONFIG = {
   publicPhone: '',
   serviceArea: 'Cumberland County, New Jersey, including ZIP code 08332. Coverage for your address must be confirmed.',
   businessHours: '',
+  // Set only the verified public tenant identifier when the approved customer
+  // adapter is implemented. This is not a bearer token or an employee/calendar ID.
+  consultationTenantId: '',
   // Owner-provided live links for review only. No UI exposes or activates them.
   // Checkout amounts, merchant, booking reconciliation, and legal terms are unverified.
   paypalReviewLinks: {
