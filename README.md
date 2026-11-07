@@ -1,50 +1,38 @@
-# SotoALJJ LLC Cleaners — local website
+# SotoALJJ Cleaners — local owner review
 
-Static website retaining the original logo and navy, blue, teal, green, and white branding. `index.html` contains Home, About, Services & Pricing, Contact, Free Consultation, and Booking sections.
+Static website retaining the existing logo, service descriptions and navy/teal/green branding. No build or public runtime dependencies are needed. Serve this directory only; the parent `.qa/` and `owner-review/` directories are private review material.
 
-## Current state
+## Current local state — November 6, 2026
 
-Owner confirmed on November 5, 2026: sotoaljj@gmail.com; Cumberland County, New Jersey including ZIP 08332, subject to confirmed address coverage. Standard cleaning up to 875 sq. ft. is $100 before tax / $106.63 with NJ tax. Deep cleaning up to 875 sq. ft. is $250 before tax / $266.56 with NJ tax. Above 875 sq. ft., every tier requires a custom quote. Move-in/out, recurring arrangements, and all commercial services require an agreed quote; no discounts, fees, or other prices are assumed. Hours and the existing Core business-facing Twilio phone are unverified.
+`index.html#booking` contains Request Cleaning Services; `index.html#consultation` contains Schedule a Free Telephone Cleaning Consultation. Both request complete service-property addresses and phone numbers. Independent operational SMS checkboxes default unchecked. An SMS preference without consent requires Phone or Email instead. No ordinary inquiry requires SMS consent.
 
-Paid cleaning submission and payment are intentionally unavailable. The cleaning form is for local planning only and sends/stores nothing. Email is the public fallback. A validated eligible paid cleaning request requires a 20% deposit credited to the agreed total, with the remaining 80% due upon arrival. Full payment must be verified before cleaning starts. Standard split: $21.33 + $85.30; deep split: $53.31 + $213.25. These are rounded portions of the tax-inclusive total, not additional purchases. FREE Custom Cleaning Consultations never require a payment, deposit, or balance.
+Submissions, scheduling, payments and provider integrations remain disabled. `consultationTenantId` is empty and `liveSubmissionsEnabled` is false. `consultationFormat` records the owner-approved telephone-only format; it does not assert calling capability. No public Core adapter or HTTP transport is installed. Email fallback is the owner-verified `sotoaljj@gmail.com`. Service coverage in Cumberland County, NJ requires individual property verification. No dedicated business phone or support hours are invented.
 
-## Free consultation preparation
+## Controlling service rules
 
-Commercial cleaning and homes exceeding 875 sq. ft. have a dedicated free consultation form. Date/time selectors remain empty and disabled until a trusted approved Core customer adapter returns verified, tenant/service-matched, zero-fee, unexpired slots. No sample appointments, employee IDs, personal calendar URLs, or calendar credentials are in the public files.
+Standard residential cleaning up to 875 sq. ft. is $100 before tax; deep cleaning is $250 before tax. Deep scope includes closets, cupboards and laundry when the customer has required working equipment. Homes over 875 sq. ft. and all commercial services require individual quotes. Move-in/out and recurring arrangements require agreed individual quotes unless an existing authorized price applies.
 
-`consultation.js` is a frontend adapter boundary, not a claimed Core HTTP contract. Public `consultationTenantId` is blank and no `window.SOTO_CONSULTATION_CLIENT` transport is installed. Therefore the current site cannot fetch slots or submit a consultation; it clearly reports temporary unavailability. Adding a URL or tenant ID alone cannot enable it. The adapter must implement `getAvailability`, `requestConsultation`, and `getConsultationStatus` against the actual approved customer-facing contract, preserving authentication, CSRF, tenant/customer isolation and server rules. Never expose a tenant bearer credential.
+The existing integer-cent helper uses 6.625% NJ tax. Standard: $106.63 total, $21.33 deposit, $85.30 balance. Deep: $266.56 total, $53.31 deposit, $213.25 balance. A 20% deposit secures an approved service booking; the remainder is due upon arrival. No cleaning starts before verified full payment. No payment functionality is enabled.
 
-The frontend passes selected service, customer, property/scope/address, returned slot identity/timestamps, contact consent, tenant context and an idempotency key to that adapter. New-customer slots under 48 hours are filtered. Only the engine adapter can assert verified recurring status to allow shorter-notice requests, which still require staff approval. Received requests display Pending Confirmation; explicit authoritative confirmed status with authorized approval is required to show confirmation. A status-check button supports the later transition. Timeouts/uncertain writes never show a receipt or automatically retry.
+Cancellations received more than 48 elapsed hours before service qualify for a refundable deposit; exactly 48 hours or less forfeits it, subject to applicable statutory rights. Completed services ordinarily do not qualify for routine refunds; a reasonable return visit may be arranged. New customers require 48 hours' notice. Verified recurring shorter-notice requests require explicit staff approval and availability. Confirmation or a status update is targeted within 24 hours after receipt of a complete, valid booking request through an authorized channel; it is not guaranteed acceptance. Authorization, verification, scheduling and applicable calendar synchronization must succeed. Eligible consultations are telephone only, free and exactly 30 minutes, for residential or commercial properties of at least 1,000 square feet. Unknown size needs clarification before a consultation request. The separate cleaning custom-quote threshold remains over 875 square feet.
 
-Only synthetic test adapters under the parent .qa/ folder exercise these UI branches. They are not public code or genuine Core end-to-end evidence. Endpoint mapping, customer verification, consultation services, tenant ID, calendars, duration, staff approval and engine behavior remain backend integration blockers.
+## Code and policies
 
-The owner-provided PayPal links are retained as inactive review data in config.js. No PayPal link is exposed as an active customer checkout. Neither opening a link nor a success query parameter can establish payment. Link checkout amounts, correct merchant, booking matching, and server-side reconciliation remain unverified. No live charge or chargeable test has been performed.
+- `app.js`: service-card navigation and verified public details.
+- `booking-rules.js`: established integer-cent pricing and DST-aware New York 48-hour guidance; unchanged and non-authoritative.
+- `customer-requests.js`: conditional validation, compatible property options, square-footage clearing, restored cleaning price/date guidance, versioned consent payloads and guarded inquiry receipts.
+- `consultation.js`: verified returned slots, consistent size context, eligibility, pending/confirmed status and durable-calendar guards.
+- `config.js`: display values, approved telephone format, explicit submission-disable flag and shared version/disclosure metadata. Existing PayPal review links remain inactive data.
+- `privacy.html` and `terms.html`: complete, readable owner-approved policies generated from the exact `FINAL-*.md` documents in the private parent `owner-review/` directory. Effective date is November 6, 2026; publication is awaiting explicit commit/push/deployment authorization.
 
-The New York date/time picker displays a 48-hour minimum for new customers. Display helpers account for elapsed time across DST; backend enforcement is still required. Selecting recurring service does not grant a verification exception. Verified recurring requests within 48 hours need actual availability and authorized manual approval through Core. The 24-hour confirmation target begins only after both a completed request and a verified deposit. It never grants automatic confirmation.
+Consent disclosure version is `soto-operational-sms-2026-11-06-v2`, now expressly including telephone consultations. Policy version remains `soto-policies-2026-11-06-proposed-final-v1`. Both form metadata and compatibility checks share this mapping. A receipt must preserve the exact v2 disclosure text as well as its version. Superseded disclosure/policy versions cannot satisfy the compatibility gate. The owner approved the November 6, 2026 policy effective date. Publication and any live integration remain separately gated.
 
-Revised cancellation/refund wording stays in the private owner-review draft until final owner approval. The public page discloses that approved terms must be reviewed before deposit collection. Earlier blanket nonrefund wording and earlier standard-only pricing reports are superseded by the current owner instructions.
+The cleaning inquiry retains its required service-date/timeframe field plus an optional specific New York start picker. The picker enforces the displayed new-customer 48-hour rule; a timeframe needs staff review, and a verified shorter-notice exception must go through staff. The restored price guidance quotes only known-size residential standard/deep one-time requests up to 875 sq. ft. Other services and recurring arrangements require individual quotes. Price and date guidance never authorize a booking, payment or eligibility exception.
 
-The prior speculative API adapter was removed after inspecting the existing Core contract. Core's tenant-authenticated `/intake` route rejects the old frontend schema and its bearer credential must never be embedded here. No second backend is provided. Adding an API URL cannot enable bookings.
+## Adapter and release boundaries
 
-## Files
+The `SOTO_CLEANING_CLIENT.requestCleaning` and `SOTO_CONSULTATION_CLIENT.getAvailability/requestConsultation/getConsultationStatus` interfaces remain UI contracts only, not existing public HTTP routes. All accepted receipts require matching server-recorded consent/version evidence. Consultation confirmation also requires authoritative verification, approval and durable synchronized calendar state. Server tenant mapping, customer ownership, CSRF/origin controls, rate limits, privacy, idempotency, actual storage and provider behavior remain separate Core implementation requirements. Never add bearer credentials to public code.
 
-- `index.html`: customer content and planning form.
-- `styles.css`: original branding and layout.
-- `accessibility.css`: responsive, focus, contrast, reduced motion, and updated section styles.
-- `app.js`: service switching, nonbinding price guidance, public details, guarded disabled submission.
-- `booking-rules.js`: display-only integer-cent price/tax splits and New York date/time guidance; never an authoritative booking or payment engine.
-- `consultation.js`: empty-by-default free consultation picker, guarded adapter calls, pending/confirmed UI and confirmation status refresh.
-- `config.js`: verified public display values only, never credentials.
-- `assets/sotoaljj-logo.png`: unchanged original; smaller derived PNG used for display, separate favicon.
+Current focused validation from the parent workspace: `node .qa/final-readiness.cjs` and `python .qa/check-policy-documents.py --final`. Earlier 28 Chrome scenarios and nine pricing/date tests remain historical evidence; their synthetic fixtures use superseded versions and must not be mistaken for the current contract. QA stays outside the public directory and is not genuine transaction evidence.
 
-## Review and validation
-
-In the parent workspace, `owner-review/` holds the integration evidence, unpublished policy draft, internal profitability measurement template, and implementation report. Keep that folder outside any deployment or public repository. Completed profitability records must stay in authorized private storage.
-
-The parent `.qa/validate.cjs` uses Playwright, the installed local Chrome, and axe-core to test browser behavior and automated accessibility. Run `node .qa/validate.cjs`, `node --test .qa/booking-guidance.test.cjs`, and `node .qa/consultation-ui.cjs` from the parent workspace. Consultation responses in the last suite are mocks only. These tools are not production dependencies. Automated results do not constitute a complete accessibility certification or genuine Core/PayPal end-to-end acceptance.
-
-No build is needed. For local preview, serve this directory as static files. The supplied folder originally had no Git metadata; a local repository was prepared for review against the existing remote history. The parent internal materials remain outside this repository.
-
-## Publication gate
-
-The base commit fe2465043cb4359d5c18e80f8e936ab1243d25aa was previously pushed and deployed with owner authorization. This consultation preparation is local only and requires new owner authorization before push/deployment. No live payment or production Core changes are authorized here. Publish only this website directory after approval, never the parent workspace or owner-review files. Before actual scheduling/booking/payment launch, complete and verify the existing Core customer workflow described in the integration review. Preserve all existing tenant, service, commercial, cancellation, security, and provider-gate rules.
+The private `owner-review/final-release-review/FINAL-REPORT.md` contains full policies, focused evidence, versioned Core handoff, proposed Twilio campaign text and exact release actions for approval. All prior packages are historical. No commit, push, deployment, real booking, SMS, Google write, payment or provider activation is authorized by this local work.

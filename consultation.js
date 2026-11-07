@@ -1,152 +1,80 @@
 "use strict";
-// UI adapter boundary only, NOT a Receptionist Core HTTP contract.
-// No transport is bundled until the actual public customer contract is approved.
+// Existing Core adapter method boundary; no public HTTP transport is invented.
 (() => {
-  const form = document.querySelector('#consultation-form');
-  const controls = document.querySelector('#consultation-fields');
-  const loadButton = document.querySelector('#consultation-load');
-  const submitButton = document.querySelector('#consultation-submit');
-  const refreshButton = document.querySelector('#consultation-refresh');
-  const status = document.querySelector('#consultation-status');
-  const date = form.elements.consultation_date;
-  const time = form.elements.consultation_slot;
-  const service = form.elements.consultation_service;
-  const size = form.elements.consultation_size;
-  const business = form.elements.consultation_business;
-  const client = window.SOTO_CONSULTATION_CLIENT;
-  const tenantId = window.SOTO_BOOKING_CONFIG?.consultationTenantId;
-  const connected = typeof tenantId === 'string' && tenantId.trim() && client &&
-    client.tenantId === tenantId && typeof client.getAvailability === 'function' && typeof client.requestConsultation === 'function' && typeof client.getConsultationStatus === 'function';
-  const zone = 'America/New_York';
-  const dayKey = value => window.SotoBookingGuidance.localTimestamp(Date.parse(value)).slice(0, 10);
-  const timeLabel = value => new Intl.DateTimeFormat('en-US', {timeZone:zone,hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(value));
-  const dateLabel = key => new Intl.DateTimeFormat('en-US', {timeZone:zone,weekday:'long',month:'long',day:'numeric',year:'numeric'}).format(new Date(key+'T12:00:00-05:00'));
-  const unavailable = 'Online consultation scheduling is temporarily unavailable. No appointment has been requested. Email sotoaljj@gmail.com for help. Your consultation is free; no payment is required.';
-  let batch = null, slots = [], version = 0, busy = false, terminal = false, expiryTimer;
-  let receiptContext = null;
-  function say(message) { status.textContent = message; }
-  function resetPicker() {
-    clearTimeout(expiryTimer); batch = null; slots = [];
-    date.replaceChildren(new Option('No verified dates loaded', ''));
-    time.replaceChildren(new Option('Choose an available date first', ''));
-    date.disabled = time.disabled = submitButton.disabled = true;
+  const api=window.SotoCustomerRequests,form=document.querySelector('#consultation-form'),e=form.elements;
+  const valid=api.prepare(form),client=window.SOTO_CONSULTATION_CLIENT;
+  const format=window.SOTO_BOOKING_CONFIG?.consultationFormat;
+  const ready=format==='Telephone consultation — 30 minutes — FREE' && api.connected(client,['getAvailability','requestConsultation','getConsultationStatus']);
+  document.querySelector('#consultation-format').textContent='Telephone consultation — 30 minutes — FREE. The full property address is for service evaluation, not a consultation location. Telephone scheduling and calling capability are not connected on this website.';
+  const load=document.querySelector('#consultation-load'),submit=document.querySelector('#consultation-submit'),refresh=document.querySelector('#consultation-refresh'),status=document.querySelector('#consultation-status');
+  const zone='America/New_York',tenantId=window.SOTO_BOOKING_CONFIG?.consultationTenantId;
+  const day=value=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+  const time=value=>new Intl.DateTimeFormat('en-US',{timeZone:zone,hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(value));
+  const dateLabel=value=>new Intl.DateTimeFormat('en-US',{timeZone:zone,year:'numeric',month:'long',day:'numeric'}).format(new Date(value));
+  let slots=[],batch=null,revision=0,busy=false,terminal=false,context=null,timer;
+  const say=message=>{status.textContent=message;};
+  const service=()=>e.cleaning_type.value==='Residential'?'residential_custom_consultation':e.cleaning_type.value==='Commercial'?'commercial_custom_consultation':'other_consultation';
+  function eligible(slot,returning) {
+    return Boolean(slot && typeof slot.id==='string' && slot.id && [slot.startsAt,slot.endsAt].every(v=>typeof v==='string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v))) && Date.parse(slot.startsAt)>Date.now() && Date.parse(slot.endsAt)-Date.parse(slot.startsAt)===1800000 && (Date.parse(slot.startsAt)-Date.now()>=172800000 || returning===true));
   }
-  function shortNotice(slot) { return Date.parse(slot.startsAt)-Date.now() < 48*3600000; }
-  function usable(slot, recurring) {
-    return slot && typeof slot.id === 'string' && slot.id.length > 0 && slot.id.length <= 200 &&
-      typeof slot.startsAt === 'string' && typeof slot.endsAt === 'string' &&
-      /(?:Z|[+-]\d{2}:\d{2})$/.test(slot.startsAt) && /(?:Z|[+-]\d{2}:\d{2})$/.test(slot.endsAt) &&
-      Date.parse(slot.startsAt) > Date.now() && Date.parse(slot.endsAt) > Date.parse(slot.startsAt) &&
-      (!shortNotice(slot) || recurring === true);
+  function reset() {
+    clearTimeout(timer);batch=null;slots=[];submit.disabled=true;
+    e.consultation_date.replaceChildren(new Option('No verified dates loaded',''));e.consultation_slot.replaceChildren(new Option('Choose an available date first',''));e.consultation_date.disabled=e.consultation_slot.disabled=true;
   }
-  function selectDate() {
-    time.replaceChildren(new Option('Select an available time', ''));
-    const matching = slots.filter(s => dayKey(s.startsAt) === date.value);
-    for (const slot of matching) time.add(new Option(`${timeLabel(slot.startsAt)} – ${timeLabel(slot.endsAt)}${shortNotice(slot)?' · staff approval required':''}`, slot.id));
-    time.disabled = !matching.length; submitButton.disabled = true;
-  }
-  function validateProperty() {
-    const home = service.value === 'residential_custom_consultation';
-    const propertyType = form.elements.consultation_property_type;
-    for(const option of propertyType.options) option.disabled = home ? ['office','retail'].includes(option.value) : ['house','apartment'].includes(option.value);
-    if(propertyType.selectedOptions[0].disabled) propertyType.value = home ? 'house' : 'office';
-    size.min = home ? '876' : '1';
-    size.setCustomValidity(home && Number(size.value) <= 875 ? 'This free residential custom-quote consultation is for properties exceeding 875 square feet.' : '');
-    business.required = !home;
-    document.querySelector('#consultation-business-label').hidden = home;
-    business.disabled = home;
-  }
-  function invalidate() {
-    version++; resetPicker(); validateProperty();
-    if (!terminal) say(connected ? 'Check available dates for your selected free consultation. Only returned appointment slots will appear.' : unavailable);
-  }
-  function expire() {
-    version++; resetPicker();
-    say('These availability results have expired. Check available dates again before requesting a consultation. No appointment is reserved.');
-  }
-  function property() {
-    return {type:form.elements.consultation_property_type.value,squareFeet:Number(size.value),businessName:business.disabled?'':business.value.trim(),address:form.elements.consultation_address.value.trim(),scope:form.elements.consultation_scope.value.trim()};
-  }
-  // Bound the UI wait; adapters must honor AbortSignal and reconcile uncertain writes.
-  async function call(method, payload) {
-    const controller = new AbortController();
-    let timer;
-    try {
-      return await Promise.race([
-        Promise.resolve().then(() => client[method](payload, {signal:controller.signal})),
-        new Promise((_, reject) => { timer=setTimeout(() => {controller.abort();reject(new Error('unavailable'));},15000); })
-      ]);
-    } finally { clearTimeout(timer); }
-  }
-  function showReceipt(response, request, slot) {
-    if(!response || response.tenantId!==tenantId || response.service!==request.service || response.slotId!==slot.id || typeof response.requestId!=='string' || !response.requestId || response.feeCents!==0 || response.paymentRequired!==false || !['pending_confirmation','confirmed'].includes(response.status) || (receiptContext && receiptContext.requestId!==response.requestId)) throw new Error('unverified');
-    receiptContext = {request,slot,requestId:response.requestId};
-    terminal=true;
-    const confirmed = response.status==='confirmed' && response.authorizedApproval===true;
-    refreshButton.hidden=confirmed; refreshButton.disabled=confirmed;
-    if(confirmed) say(`Your free consultation is confirmed for ${dateLabel(dayKey(slot.startsAt))}, ${timeLabel(slot.startsAt)}. Reference: ${response.requestId}. No payment is required.`);
-    else say(`Pending Confirmation. Your free consultation request was received. Staff approval is still required; this is not a confirmed appointment. Reference: ${response.requestId}. No payment is required.`);
-  }
-  refreshButton.addEventListener('click', async () => {
-    if(!connected || !receiptContext || busy) return;
-    busy=true;refreshButton.disabled=true;
-    try { showReceipt(await call('getConsultationStatus',{tenantId,requestId:receiptContext.requestId}),receiptContext.request,receiptContext.slot); }
-    catch {say('Pending Confirmation. We could not verify an updated appointment status. Your appointment is not confirmed here. Please email us for help. No payment is required.');refreshButton.disabled=false;}
-    finally {busy=false;}
+  for(const name of ['cleaning_type','property_type','size_known','square_feet'])e[name].addEventListener('input',()=>{revision++;reset();});
+  e.consultation_date.addEventListener('change',()=>{
+    e.consultation_slot.replaceChildren(new Option('Select an available time',''));
+    for(const slot of slots.filter(s=>day(s.startsAt)===e.consultation_date.value))e.consultation_slot.add(new Option(time(slot.startsAt),slot.id));
+    e.consultation_slot.disabled=false;submit.disabled=true;
   });
-  loadButton.addEventListener('click', async () => {
-    if (!connected || busy || terminal) { if(!terminal) say(unavailable); return; }
-    validateProperty();
-    if (![service,size,form.elements.consultation_property_type].every(input=>input.reportValidity())) return;
-    const current = ++version;
-    resetPicker(); busy = true; loadButton.disabled = true;
-    say('Checking consultation availability… No appointment is reserved.');
-    try {
-      const response = await call('getAvailability', {tenantId,service:service.value,property:{type:form.elements.consultation_property_type.value,squareFeet:Number(size.value)}});
-      if (current !== version) return;
-      if (!response || response.verified !== true || response.tenantId !== tenantId || response.service !== service.value || response.feeCents !== 0 || !Array.isArray(response.slots) || !Number.isFinite(Date.parse(response.expiresAt)) || Date.parse(response.expiresAt) <= Date.now()) throw new Error('invalid');
-      const ids = new Set();
-      slots = response.slots.filter(s=>usable(s,response.verifiedRecurringCustomer)).filter(s=>{if(ids.has(s.id))return false;ids.add(s.id);return true;}).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
-      batch = response;
-      const dates = [...new Set(slots.map(s=>dayKey(s.startsAt)))];
-      date.replaceChildren(new Option(dates.length?'Select an available date':'No eligible slots returned',''));
-      for (const key of dates) date.add(new Option(dateLabel(key),key));
-      date.disabled = !dates.length;
-      say(dates.length ? `Choose a returned date and time in America/New_York. ${response.verifiedRecurringCustomer===true?'Your verified recurring status allows shorter-notice requests subject to staff approval.':'New-customer requests require at least 48 hours.'} Requesting a slot does not confirm it. No payment is required.` : 'No eligible consultation slots were returned. Try checking again later or email us. No appointment is reserved.');
-      expiryTimer = setTimeout(expire, Math.min(Date.parse(response.expiresAt)-Date.now(),2147483647));
-    } catch { if(current===version){resetPicker();say(unavailable);} }
-    finally {busy=false;loadButton.disabled=!connected||terminal;}
+  e.consultation_slot.addEventListener('change',()=>{submit.disabled=!ready || busy || terminal || !batch || Date.parse(batch.expiresAt)<=Date.now() || !slots.some(s=>s.id===e.consultation_slot.value && day(s.startsAt)===e.consultation_date.value);});
+  function policyValid() {
+    if(e.size_known.value!=='Enter square feet'){say('Free telephone consultations require at least 1,000 square feet. Email sotoaljj@gmail.com to clarify eligibility if you are unsure of the property size.');return false;}
+    e.square_feet.required=true;
+    e.square_feet.setCustomValidity(Number(e.square_feet.value)<1000?'Free telephone consultations require at least 1,000 square feet.':'');
+    if(e.cleaning_type.value==='Other'){say('This consultation type requires an authorized service-policy decision. Please email sotoaljj@gmail.com.');return false;}
+    return e.cleaning_type.reportValidity() && e.property_type.reportValidity() && e.size_known.reportValidity() && e.square_feet.reportValidity();
+  }
+  e.cleaning_type.addEventListener('change',()=>{e.square_feet.required=e.size_known.value==='Enter square feet';});
+  load.disabled=!ready;
+  load.addEventListener('click',async()=>{
+    if(!ready || busy || terminal || !policyValid())return;
+    reset();const current=++revision;busy=true;load.disabled=true;say('Checking consultation availability… No appointment is reserved.');const requestedService=service();
+    try{
+      const response=await api.call(client,'getAvailability',{tenantId,service:requestedService,property:{type:e.property_type.value,sizeKnown:e.size_known.value,squareFeet:e.size_known.value==='Enter square feet'?Number(e.square_feet.value):null}});
+      if(current!==revision)return;
+      if(response?.verified!==true || response.tenantId!==tenantId || response.service!==requestedService || response.feeCents!==0 || response.durationMinutes!==30 || !Array.isArray(response.slots) || !(Date.parse(response.expiresAt)>Date.now()))throw Error('unverified');
+      const ids=new Set();slots=response.slots.filter(s=>eligible(s,response.verifiedRecurringCustomer)).filter(s=>{if(ids.has(s.id))return false;ids.add(s.id);return true;});batch=response;
+      e.consultation_date.replaceChildren(new Option('Select an available date',''));
+      for(const key of [...new Set(slots.map(s=>day(s.startsAt)))].sort())e.consultation_date.add(new Option(key,key));
+      e.consultation_date.disabled=!slots.length;say(slots.length?'Choose an available date and time in America/New_York. Your appointment is not yet confirmed.':'No eligible consultation times are available. Please check again later.');
+      timer=setTimeout(()=>{revision++;reset();say('Availability expired. Please check available dates again.');},Math.min(Date.parse(response.expiresAt)-Date.now(),2147483647));
+    }catch{if(current===revision){reset();say('Consultation availability could not be verified. No appointment is reserved.');}}
+    finally{busy=false;load.disabled=!ready||terminal;}
   });
-  date.addEventListener('change', selectDate);
-  time.addEventListener('change', () => {
-    const selected = slots.find(s=>s.id===time.value && dayKey(s.startsAt)===date.value);
-    submitButton.disabled = !connected || busy || terminal || !batch || Date.parse(batch.expiresAt)<=Date.now() || !usable(selected,batch.verifiedRecurringCustomer);
+  function show(response,request,slot) {
+    if(response?.status==='unavailable' && response.tenantId===tenantId && response.service===request.service && response.slotId===slot.id && response.definitivelyRejected===true && !context){terminal=false;form.querySelector('fieldset').disabled=false;load.disabled=false;reset();say('That appointment time is no longer available. Please choose another time.');return;}
+    if(!api.receipt(response,request) || response.service!==request.service || response.slotId!==slot.id || response.feeCents!==0 || response.paymentRequired!==false || !['verification_pending','pending_confirmation','confirmed'].includes(response.status) || (context && response.requestId!==context.requestId))throw Error('unverified');
+    context={request,slot,requestId:response.requestId};
+    if(response.status==='verification_pending'){refresh.hidden=false;say('Please complete the required contact verification to continue.');return;}
+    const confirmed=response.status==='confirmed' && response.authorizedApproval===true && response.contactVerificationComplete===true && response.calendarSync?.durable===true && response.calendarSync?.status==='synchronized' && response.startsAt===slot.startsAt && response.endsAt===slot.endsAt;
+    say(confirmed?`Your consultation is confirmed for ${dateLabel(slot.startsAt)} at ${time(slot.startsAt)}.`:'Your consultation request is being processed. Your appointment is not yet confirmed.');refresh.hidden=confirmed;
+  }
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();if(!ready || busy || terminal || !policyValid() || !valid())return;
+    const slot=slots.find(s=>s.id===e.consultation_slot.value && day(s.startsAt)===e.consultation_date.value);
+    if(!batch || Date.parse(batch.expiresAt)<=Date.now() || !eligible(slot,batch.verifiedRecurringCustomer)){reset();say('That appointment time is no longer available. Please choose another time.');return;}
+    const request={...api.payload(form,'consultation',crypto.randomUUID()),service:service(),consultationFormat:format,slot:{...slot}};
+    busy=terminal=true;clearTimeout(timer);form.querySelector('fieldset').disabled=true;load.disabled=submit.disabled=true;say('Your consultation request is being processed. Your appointment is not yet confirmed.');
+    try{show(await api.call(client,'requestConsultation',request),request,slot);}
+    catch{say('We could not verify whether your request was received. No appointment is confirmed. Please email sotoaljj@gmail.com before trying again.');}
+    finally{busy=false;}
   });
-  for (const input of [service,size,form.elements.consultation_property_type]) input.addEventListener('input', invalidate);
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    if (!connected) {say(unavailable);return;}
-    if (busy || terminal) return;
-    validateProperty();
-    if(!form.reportValidity()) return;
-    const slot = slots.find(s=>s.id===time.value && dayKey(s.startsAt)===date.value);
-    if(!batch || Date.parse(batch.expiresAt)<=Date.now() || !usable(slot,batch.verifiedRecurringCustomer)){expire();return;}
-    const customer = {name:form.elements.consultation_name.value.trim(),email:form.elements.consultation_email.value.trim(),phone:form.elements.consultation_phone.value.trim()};
-    if(!customer.name || !customer.phone || !property().address || !property().scope || (!business.disabled && !business.value.trim())) {say('Please complete the customer and property details with more than blank spaces.');return;}
-    busy=true;controls.disabled=true;loadButton.disabled=submitButton.disabled=true;
-    clearTimeout(expiryTimer);
-    const request = {tenantId,service:service.value,customer,property:property(),slot:{id:slot.id,startsAt:slot.startsAt,endsAt:slot.endsAt},contactConsent:form.elements.consultation_consent.checked,idempotencyKey:crypto.randomUUID()};
-    say('Sending your free consultation request… This is not an appointment confirmation.');
-    try {
-      const response = await call('requestConsultation',request);
-      showReceipt(response,request,slot);
-    } catch {
-      // A timed-out write may have reached the engine. Avoid duplicate retries or false receipts.
-      terminal=true;
-      say('We could not verify whether your request was received. No appointment is confirmed. Please email sotoaljj@gmail.com before trying again. No payment is required.');
-    } finally {busy=false;submitButton.disabled=loadButton.disabled=true;}
+  refresh.addEventListener('click',async()=>{
+    if(!context || busy)return;busy=true;refresh.disabled=true;
+    try{show(await api.call(client,'getConsultationStatus',{tenantId,requestId:context.requestId}),context.request,context.slot);}
+    catch{say('We could not verify an updated status. Your appointment is not confirmed here. Please email sotoaljj@gmail.com.');}
+    finally{busy=false;refresh.disabled=false;}
   });
-  controls.disabled = !connected;
-  loadButton.disabled = !connected;
-  resetPicker();validateProperty();say(connected?'Check available dates for a free consultation. No payment is required.':unavailable);
+  if(ready)say('Check available dates for your free consultation. SMS is optional.');reset();
 })();
